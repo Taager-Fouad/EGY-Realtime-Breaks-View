@@ -1,0 +1,151 @@
+body {
+    background-color: #0f1a2b; /* كحلي متوسط */
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-align: center;
+    padding: 20px;
+}
+
+h1 {
+    color: #00ffff;
+    text-shadow: 0 0 15px #00ffff;
+    margin-bottom: 20px;
+}
+
+input, button {
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    outline: none;
+}
+
+input {
+    width: 280px;
+    margin-bottom: 20px;
+    background-color: #1a2538;
+    color: #00ffff;
+    box-shadow: 0 0 10px #00ffff33;
+}
+
+button {
+    background-color: #00ffff;
+    color: #000;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 0 15px #00ffff;
+    margin-left: 10px;
+}
+
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.flexContainer {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+    margin-bottom: 50px;
+}
+
+.rightColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.finalConnectDiv, .totalPauseDiv, .breaksDiv {
+    width: 320px;
+    background-color: #1a2538;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 0 25px #00bfff22;
+    text-align: left;
+}
+
+.fcTitle, .pauseTitle, .breaksTitle {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #00ffff;
+    text-shadow: 0 0 8px #00ffff;
+}
+
+.fcTotal, .pauseTotal, .breaksTotal {
+    font-size: 28px;
+    font-weight: bold;
+    color: #ffcc00;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #ffcc00;
+}
+
+.barLabel {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #00ffff;
+    margin-bottom: 2px;
+}
+
+.bar {
+    height: 25px;
+    border-radius: 5px;
+    background-color: #00ffff22;
+    overflow: hidden;
+    position: relative;
+}
+
+.barInner {
+    height: 100%;
+    border-radius: 5px;
+    text-align: right;
+    padding-right: 5px;
+    font-weight: bold;
+    box-shadow: 0 0 10px #00ffff;
+    color: #000;
+    transition: width 0.8s ease-in-out;
+}
+
+.agentCard {
+    background-color: #1a2538;
+    padding: 20px;
+    margin: 20px auto; /* في النص */
+    border-radius: 12px;
+    width: 80%; /* على الأقل 80% */
+    max-width: 700px;
+    box-shadow: 0 0 25px #00bfff22;
+    text-align: center;
+}
+
+.agentHeader {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    margin-top: 20px;
+    color: #00ffff;
+    text-shadow: 0 0 5px #00ffff;
+}
+
+table {
+    width: 100%; /* الجدول يأخذ كامل عرض الكارد */
+    border-collapse: collapse;
+    margin: 0 auto;
+}
+
+th, td {
+    border-bottom: 1px solid #00bfff33;
+    padding: 8px;
+    text-align: center;
+}
+
+th {
+    color: #00ffff;
+}
+
+#noData {
+    margin-top:20px;
+    color:#888;
+    text-shadow:0 0 5px #00ffff;
+}

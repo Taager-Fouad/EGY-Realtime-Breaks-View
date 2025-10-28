@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EGY Realtime / Breaks View</title>
+<link rel="icon" href="assets/icon/ODF.png" type="icon">
+<link rel="stylesheet" href="css/master.css">
+</head>
+<body>
+
+<h1>EGY Realtime / Breaks View</h1>
+<input type="text" id="searchInput" placeholder="Search by Name or ID">
+<button id="searchBtn" disabled>Search</button>
+
+<p id="noData" style="display:none;">No data found</p>
+
+<div id="agentHeaderContainer"></div>
+
+<div class="flexContainer">
+  <div id="finalConnectContainer"></div>
+
+  <div class="rightColumn">
+    <div id="totalPauseContainer"></div>
+    <div id="breaksContainer" class="breaksDiv" style="display:none;">
+      <div class="breaksTitle">Breaks Time</div>
+      <div class="barLabel"><span>First Break</span><span id="firstBreak">—</span></div>
+      <div class="barLabel"><span>Second Break</span><span id="secondBreak">—</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="agentsContainer"></div>
+
+<script src="js/script.js">
+</script>
+</body>
+</html>
