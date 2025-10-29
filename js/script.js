@@ -348,4 +348,11 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
 
 });
 
+// تنفيذ البحث عند الضغط على Enter
+document.getElementById("searchInput").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") {
+        document.getElementById("searchBtn").click();
+    }
+});
+
 loadData();
