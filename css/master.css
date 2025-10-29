@@ -1,17 +1,15 @@
 body {
-    background-color: #0f1a2b; /* كحلي متوسط */
+    background-color: #0f1a2b;
     color: #e0e0e0;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-align: center;
     padding: 20px;
 }
-
 h1 {
     color: #00ffff;
     text-shadow: 0 0 15px #00ffff;
     margin-bottom: 20px;
 }
-
 input, button {
     padding: 10px;
     border: none;
@@ -19,7 +17,6 @@ input, button {
     font-size: 16px;
     outline: none;
 }
-
 input {
     width: 280px;
     margin-bottom: 20px;
@@ -27,7 +24,6 @@ input {
     color: #00ffff;
     box-shadow: 0 0 10px #00ffff33;
 }
-
 button {
     background-color: #00ffff;
     color: #000;
@@ -36,12 +32,10 @@ button {
     box-shadow: 0 0 15px #00ffff;
     margin-left: 10px;
 }
-
 button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
 }
-
 .flexContainer {
     display: flex;
     justify-content: center;
@@ -49,13 +43,11 @@ button:disabled {
     flex-wrap: wrap;
     margin-bottom: 50px;
 }
-
 .rightColumn {
     display: flex;
     flex-direction: column;
     gap: 20px;
 }
-
 .finalConnectDiv, .totalPauseDiv, .breaksDiv {
     width: 320px;
     background-color: #1a2538;
@@ -64,7 +56,6 @@ button:disabled {
     box-shadow: 0 0 25px #00bfff22;
     text-align: left;
 }
-
 .fcTitle, .pauseTitle, .breaksTitle {
     font-size: 18px;
     font-weight: bold;
@@ -72,7 +63,6 @@ button:disabled {
     color: #00ffff;
     text-shadow: 0 0 8px #00ffff;
 }
-
 .fcTotal, .pauseTotal, .breaksTotal {
     font-size: 28px;
     font-weight: bold;
@@ -80,7 +70,6 @@ button:disabled {
     margin-bottom: 10px;
     text-shadow: 0 0 10px #ffcc00;
 }
-
 .barLabel {
     display: flex;
     justify-content: space-between;
@@ -88,7 +77,6 @@ button:disabled {
     color: #00ffff;
     margin-bottom: 2px;
 }
-
 .bar {
     height: 25px;
     border-radius: 5px;
@@ -96,7 +84,6 @@ button:disabled {
     overflow: hidden;
     position: relative;
 }
-
 .barInner {
     height: 100%;
     border-radius: 5px;
@@ -107,18 +94,16 @@ button:disabled {
     color: #000;
     transition: width 0.8s ease-in-out;
 }
-
 .agentCard {
     background-color: #1a2538;
     padding: 20px;
-    margin: 20px auto; /* في النص */
+    margin: 20px auto;
     border-radius: 12px;
-    width: 80%; /* على الأقل 80% */
+    width: 80%;
     max-width: 700px;
     box-shadow: 0 0 25px #00bfff22;
     text-align: center;
 }
-
 .agentHeader {
     font-size: 18px;
     font-weight: bold;
@@ -127,25 +112,33 @@ button:disabled {
     color: #00ffff;
     text-shadow: 0 0 5px #00ffff;
 }
-
 table {
-    width: 100%; /* الجدول يأخذ كامل عرض الكارد */
+    width: 100%;
     border-collapse: collapse;
     margin: 0 auto;
 }
-
 th, td {
     border-bottom: 1px solid #00bfff33;
     padding: 8px;
     text-align: center;
 }
-
 th {
     color: #00ffff;
 }
-
 #noData {
     margin-top:20px;
     color:#888;
     text-shadow:0 0 5px #00ffff;
 }
+
+  .version {
+    position: fixed;
+    bottom: 10px;
+    left: 15px;
+    font-size: 16px;
+    user-select: none;
+    font-weight: 500;
+    z-index: 9999;
+    color:#00ffff;
+    text-shadow:0 0 15px #00ffff;;
+  }
