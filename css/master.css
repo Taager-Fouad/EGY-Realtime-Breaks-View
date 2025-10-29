@@ -46,7 +46,7 @@ button:disabled {
 .rightColumn {
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 35px;
 }
 .finalConnectDiv, .totalPauseDiv, .breaksDiv {
     width: 320px;
@@ -75,7 +75,8 @@ button:disabled {
     justify-content: space-between;
     font-size: 14px;
     color: #00ffff;
-    margin-bottom: 2px;
+    margin-bottom: 4px;
+    margin-top: 10px;
 }
 .bar {
     height: 25px;
