@@ -50,8 +50,9 @@ async function fetchBreaksData(){
   const json = JSON.parse(text.substring(47,text.length-2));
   breaksData = json.table.rows.map(r => ({
     id: r.c[0]?.v || '',
+    originalShift: r.c[3]?.v || '',
     firstBreak: r.c[7]?.v || '',
-    secondBreak: r.c[8]?.v || ''
+    secondBreak: r.c[8]?.v || '',
   }));
 }
 
@@ -271,6 +272,22 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
         }
         return '—';
       }
+
+        const oldShiftEl = document.getElementById('originalShiftDiv');
+  if(oldShiftEl) oldShiftEl.remove();
+
+  // إنشاء div جديد للـ Original Shift
+  const originalShiftEl = document.createElement('div');
+  originalShiftEl.id = 'originalShiftDiv';
+  originalShiftEl.style.color = '#ffcc00';
+  originalShiftEl.style.textShadow = '0 0 10px #ffcc00';
+  originalShiftEl.style.fontWeight = 'bold';
+  originalShiftEl.style.marginBottom = '5px';
+  originalShiftEl.textContent = `Shift: ${breakInfo.originalShift || '—'}`;
+
+  // ضعه أول عنصر في الـ breaksContainer
+  breaksContainer.insertBefore(originalShiftEl, breaksContainer.firstChild);
+       
       firstBreakEl.textContent = formatBreakTime(breakInfo.firstBreak);
       secondBreakEl.textContent = formatBreakTime(breakInfo.secondBreak);
       breaksContainer.style.display='block';
