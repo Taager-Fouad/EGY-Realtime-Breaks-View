@@ -21,13 +21,11 @@ function formatTime(value) {
   }
   return value;
 }
-
 function timeToSeconds(t){
   if(!t||typeof t!=='string'||!t.includes(':')) return 0;
   const p=t.split(':').map(Number);
   return p[0]*3600 + p[1]*60 + (p[2]||0);
 }
-
 function secondsToTime(sec){
   const h=Math.floor(sec/3600).toString().padStart(2,'0');
   const m=Math.floor((sec%3600)/60).toString().padStart(2,'0');
@@ -134,19 +132,27 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     return;
   }
 
-  // --- لو في بيانات في main
   filteredMain.forEach(agent=>{
     const agentHeader=document.createElement("div");
     agentHeader.className="agentHeader";
     const callsIdx = headers.indexOf("CALLS");
     const callsVal = callsIdx>=0 ? parseInt(agent[callsIdx]) : 0;
-    agentHeader.textContent = `Name: ${agent[0]} | ID: ${agent[1]} | CALLS: 0`;
+
+    const talkIdx = headers.indexOf("TALK");
+    const acwIdx = headers.indexOf("ACW");
+    const talkSec = talkIdx>=0 ? timeToSeconds(agent[talkIdx]) : 0;
+    const acwSec = acwIdx>=0 ? timeToSeconds(agent[acwIdx]) : 0;
+    const aht = callsVal > 0 ? secondsToTime(Math.floor((talkSec + acwSec)/callsVal)) : "0:00:00";
+
+    agentHeader.textContent = `Name: ${agent[0]} | ID: ${agent[1]} | CALLS: 0 | AHT: ${aht}`;
     headerContainer.appendChild(agentHeader);
+
     animateNumber(agentHeader, callsVal,(current)=>{
-      agentHeader.textContent=`Name: ${agent[0]} | ID: ${agent[1]} | CALLS: ${current}`;
+      const currentAHT = current>0 ? secondsToTime(Math.floor((talkSec + acwSec)/current)) : "0:00:00";
+      agentHeader.textContent=`Name: ${agent[0]} | ID: ${agent[1]} | CALLS: ${current} | AHT: ${currentAHT}`;
     });
 
-    // --- Final Connect ---
+// --- Final Connect ---
     const fcDiv=document.createElement("div");
     fcDiv.className="finalConnectDiv";
     const fcTitle=document.createElement("div");
@@ -300,6 +306,7 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     card.appendChild(table);
     container.appendChild(card);
   });
+
 
   // --- لو فيه بيانات بس في breaks sheet ---
  if(filteredMain.length===0 && filteredBreaks.length>0){
