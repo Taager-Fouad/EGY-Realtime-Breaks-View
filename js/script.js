@@ -4,11 +4,13 @@ const breakSheetId = '11scN38eNhFZU4w6pxzk95ZnAd3pveP4v2sPTTWcOhyk';
 const breakGid = 1793971504;
 const percentCols = ["WAIT %","TALK TIME %","DISPOTIME %","PAUSETIME %","DEAD TIME %"];
 const fcMetrics = ["CONNECTED","ACW","COH","IT","MAN","DISPO"];
+// pauseMetrics labels kept as Exc and BRK30 (we'll add LAGGED to Exc)
 const pauseMetrics = ["Exc","BRK30"];
 let jsonData = [];
 let headers = [];
 let breaksData = [];
 
+/* helper: format Date(...) to hh:mm:ss */
 function formatTime(value) {
   if(typeof value==='string' && value.startsWith('Date(')){
     const parts = value.match(/\d+/g);
@@ -24,7 +26,7 @@ function formatTime(value) {
 function timeToSeconds(t){
   if(!t||typeof t!=='string'||!t.includes(':')) return 0;
   const p=t.split(':').map(Number);
-  return p[0]*3600 + p[1]*60 + (p[2]||0);
+  return (p[0]||0)*3600 + (p[1]||0)*60 + (p[2]||0);
 }
 function secondsToTime(sec){
   const h=Math.floor(sec/3600).toString().padStart(2,'0');
@@ -33,14 +35,42 @@ function secondsToTime(sec){
   return `${h}:${m}:${s}`;
 }
 
+/* convert "HH:MM:SS" 24h to "hh:MM AM/PM" */
+function to12Hour(time) {
+  if(!time || typeof time !== 'string') return time || '—';
+  if(time.startsWith('Date(')) time = formatTime(time);
+  if(!time.includes(':')) return time;
+  let [h,m,s] = time.split(':').map(Number);
+  if(isNaN(h)) return time;
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if(h === 0) h = 12;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+
+/* convert column letters to zero-based index (A -> 0, AF -> 31) */
+function colLetterToIndex(letter){
+  if(!letter || typeof letter !== 'string') return -1;
+  letter = letter.toUpperCase();
+  let index = 0;
+  for(let i=0;i<letter.length;i++){
+    index = index * 26 + (letter.charCodeAt(i) - 64);
+  }
+  return index - 1;
+}
+function isTimeString(s){
+  if(!s || typeof s !== 'string') return false;
+  return /^\s*\d{1,2}:\d{2}(:\d{2})?\s*$/.test(s);
+}
+
 async function fetchSheetData(gid){
   const url = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json&gid=${gid}`;
   const res = await fetch(url);
   const text = await res.text();
   const json = JSON.parse(text.substring(47,text.length-2));
-  const cols = json.table.cols.map(c => c.label||'');
-  const rows = json.table.rows.map(r => r.c.map(c=>formatTime(c?.v||"")));
-  return {cols, rows};
+  const cols = (json.table.cols || []).map(c => c.label||'');
+  const rows = (json.table.rows || []).map(r => (r.c || []).map(c=>formatTime(c?.v||"")));
+  return {cols, rows, raw: json.table};
 }
 
 async function fetchBreaksData(){
@@ -48,8 +78,8 @@ async function fetchBreaksData(){
   const res = await fetch(url);
   const text = await res.text();
   const json = JSON.parse(text.substring(47,text.length-2));
-  breaksData = json.table.rows.map(r => ({
-    id: r.c[0]?.v || '',
+  breaksData = (json.table.rows || []).map(r => ({
+    id: (r.c[0]?.v !== undefined ? String(r.c[0].v) : '').trim(),
     originalShift: r.c[3]?.v || '',
     firstBreak: r.c[7]?.v || '',
     secondBreak: r.c[8]?.v || '',
@@ -57,50 +87,148 @@ async function fetchBreaksData(){
 }
 
 async function loadData(){
-  const allData=[];
-  for(const gid of gids) allData.push(await fetchSheetData(gid));
-  headers = allData[0].cols;
-  const combined={};
+  try{
+    const allData=[];
+    for(const gid of gids) allData.push(await fetchSheetData(gid));
+    headers = allData[0].cols || [];
+    const rows = allData[0].rows || [];
 
-  allData.forEach(sheet=>{
-    sheet.rows.forEach(r=>{
-      const key = String(r[1]||"")+"__"+String(r[0]||"");
-      if(!combined[key]) combined[key]=r.slice();
-      else{
-        for(let i=2;i<r.length;i++){
-          const val = r[i];
-          if(typeof val==='string' && val.includes(":")){
-            combined[key][i]=secondsToTime(timeToSeconds(combined[key][i])+timeToSeconds(val));
-          } else if(!isNaN(parseFloat(val))){
-            combined[key][i]=(parseFloat(combined[key][i])+parseFloat(val)).toString();
+    // --- improved AF2 reading: if header found, scan rows[0..N] in that column for time-like value
+    let af2ValueRaw = undefined;
+    const attempts = [];
+
+    const headerIdx = headers.findIndex(h => String(h||'').toLowerCase().includes('last'));
+    attempts.push({step:'header contains last', headerIdx});
+    if(headerIdx !== -1){
+      const scanMax = Math.min(rows.length, 6);
+      attempts.push(`scanning rows[0..${scanMax-1}] at column ${headerIdx}`);
+      for(let r=0; r<scanMax; r++){
+        const candidate = rows[r] ? rows[r][headerIdx] : undefined;
+        if(candidate !== undefined && candidate !== null && String(candidate).trim() !== ''){
+          if(isTimeString(String(candidate))){
+            af2ValueRaw = candidate;
+            attempts.push(`found time at rows[${r}][${headerIdx}]`);
+            break;
+          } else {
+            attempts.push(`value at rows[${r}][${headerIdx}] not time: "${candidate}"`);
+          }
+        } else {
+          attempts.push(`rows[${r}][${headerIdx}] empty/undefined`);
+        }
+      }
+    }
+
+    if(af2ValueRaw === undefined){
+      const afIdx = colLetterToIndex('AF');
+      attempts.push({step:'col letter AF', afIdx});
+      const scanMax = Math.min(rows.length, 6);
+      attempts.push(`scanning rows[0..${scanMax-1}] at AF index ${afIdx}`);
+      for(let r=0; r<scanMax; r++){
+        const candidate = rows[r] ? rows[r][afIdx] : undefined;
+        if(candidate !== undefined && candidate !== null && String(candidate).trim() !== ''){
+          if(isTimeString(String(candidate))){
+            af2ValueRaw = candidate;
+            attempts.push(`found time at rows[${r}][${afIdx}]`);
+            break;
+          } else {
+            attempts.push(`value at rows[${r}][${afIdx}] not time: "${candidate}"`);
+          }
+        } else {
+          attempts.push(`rows[${r}][${afIdx}] empty/undefined`);
+        }
+      }
+    }
+
+    if(af2ValueRaw === undefined){
+      const maxRows = Math.min(rows.length, 6);
+      const maxCols = Math.min(headers.length || 10, 12);
+      attempts.push(`fallback scan rows[0..${maxRows-1}] cols[0..${maxCols-1}]`);
+      outer:
+      for(let r=0; r<maxRows; r++){
+        for(let c=0; c<maxCols; c++){
+          const candidate = rows[r] ? rows[r][c] : undefined;
+          if(candidate !== undefined && candidate !== null && String(candidate).trim() !== '' && isTimeString(String(candidate))){
+            af2ValueRaw = candidate;
+            attempts.push(`found time at rows[${r}][${c}] during fallback`);
+            break outer;
           }
         }
       }
+    }
+
+    let af2Display = '—';
+    if(af2ValueRaw === undefined || af2ValueRaw === null) {
+      af2Display = '— (AF not found)';
+      console.warn('AF2 not found. Attempts:', attempts, {headersSample: headers.slice(0,40), rowsSample: rows.slice(0,6)});
+    } else if(String(af2ValueRaw).trim() === '') {
+      af2Display = '— (empty)';
+      console.info('AF2 is empty string. Attempts:', attempts);
+    } else {
+      af2Display = to12Hour(String(af2ValueRaw));
+      console.info('AF2 read success:', af2ValueRaw, '->', af2Display, attempts);
+    }
+    document.getElementById("lastUpdateRaw").textContent = "Last Update: " + af2Display;
+
+    const combined={};
+    allData.forEach(sheet=>{
+      (sheet.rows || []).forEach(r=>{
+        const name = String(r[0]||'').trim();
+        const id = String(r[1]||'').trim();
+        const key = `${name}__${id}`;
+        if(!combined[key]) {
+          combined[key] = r.slice();
+        } else {
+          for(let i=2;i<r.length;i++){
+            const val = r[i] || "";
+            const existing = combined[key][i] || "";
+            if(typeof val === 'string' && val.includes(':') && typeof existing === 'string' && existing.includes(':')){
+              const s = timeToSeconds(existing) + timeToSeconds(val);
+              combined[key][i] = secondsToTime(s);
+            } else if(!isNaN(parseFloat(val)) && val !== ""){
+              const sum = (parseFloat(existing||0) + parseFloat(val));
+              combined[key][i] = String(sum);
+            } else {
+              combined[key][i] = existing || val;
+            }
+          }
+        }
+      });
     });
-  });
 
-  if(!headers.includes("Final Connect")) headers.push("Final Connect");
-
-  jsonData = Object.values(combined);
-  document.getElementById("searchBtn").disabled=false;
-  await fetchBreaksData();
+    if(!headers.includes("Final Connect")) headers.push("Final Connect");
+    jsonData = Object.values(combined);
+    document.getElementById("searchBtn").disabled=false;
+    await fetchBreaksData();
+  }catch(err){
+    console.error("loadData error:", err);
+    document.getElementById("noData").style.display="block";
+    document.getElementById("noData").textContent = "Failed to load sheet data";
+    document.getElementById("lastUpdateRaw").textContent = "Last Update: —";
+  }
 }
 
-function animateNumber(element, targetValue, callback){
+function animateNumber(elementOrCallbackTarget, targetValue, callback){
   let current = 0;
-  const step = Math.ceil(targetValue/50) || 1;
+  targetValue = Math.max(0, Math.floor(targetValue || 0));
+  const steps = 50;
+  const step = Math.max(1, Math.ceil(targetValue / steps));
   const interval = setInterval(()=>{
     current += step;
     if(current >= targetValue){
       current = targetValue;
       clearInterval(interval);
     }
-    if(callback) callback(current);
-  },20);
+    if(typeof elementOrCallbackTarget === 'function'){
+      elementOrCallbackTarget(current);
+    } else if(callback){
+      callback(current);
+    }
+  }, 20);
 }
 
 document.getElementById("searchBtn").addEventListener("click", async ()=>{
-  const query = document.getElementById("searchInput").value.trim().toLowerCase();
+  const rawQuery = document.getElementById("searchInput").value.trim();
+  const query = rawQuery.toLowerCase();
   const fcContainer = document.getElementById("finalConnectContainer");
   const pauseContainer = document.getElementById("totalPauseContainer");
   const container = document.getElementById("agentsContainer");
@@ -121,15 +249,16 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
   if(!query) return;
 
   const filteredMain = jsonData.filter(r=>{
-    const name=String(r[0]||"").trim().toLowerCase();
-    const id=String(r[1]||"").trim().toLowerCase();
-    return name.includes(query)||id.includes(query);
+    const name = String(r[0]||"").trim().toLowerCase();
+    const id = String(r[1]||"").trim().toLowerCase();
+    return (name && name.includes(query)) || (id && id.includes(query));
   });
 
   const filteredBreaks = breaksData.filter(b => String(b.id||"").toLowerCase() === query);
 
   if(filteredMain.length===0 && filteredBreaks.length===0){
     document.getElementById("noData").style.display="block";
+    document.getElementById("noData").textContent = "No data found";
     return;
   }
 
@@ -137,23 +266,23 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     const agentHeader=document.createElement("div");
     agentHeader.className="agentHeader";
     const callsIdx = headers.indexOf("CALLS");
-    const callsVal = callsIdx>=0 ? parseInt(agent[callsIdx]) : 0;
+    const callsVal = callsIdx>=0 ? parseInt(agent[callsIdx]||0,10) : 0;
 
     const talkIdx = headers.indexOf("TALK");
     const acwIdx = headers.indexOf("ACW");
     const talkSec = talkIdx>=0 ? timeToSeconds(agent[talkIdx]) : 0;
     const acwSec = acwIdx>=0 ? timeToSeconds(agent[acwIdx]) : 0;
-    const aht = callsVal > 0 ? secondsToTime(Math.floor((talkSec + acwSec)/callsVal)) : "0:00:00";
+    const aht = callsVal > 0 ? secondsToTime(Math.floor((talkSec + acwSec)/callsVal)) : "00:00:00";
 
     agentHeader.textContent = `Name: ${agent[0]} | ID: ${agent[1]} | CALLS: 0 | AHT: ${aht}`;
     headerContainer.appendChild(agentHeader);
 
     animateNumber(agentHeader, callsVal,(current)=>{
-      const currentAHT = current>0 ? secondsToTime(Math.floor((talkSec + acwSec)/current)) : "0:00:00";
+      const currentAHT = current>0 ? secondsToTime(Math.floor((talkSec + acwSec)/current)) : "00:00:00";
       agentHeader.textContent=`Name: ${agent[0]} | ID: ${agent[1]} | CALLS: ${current} | AHT: ${currentAHT}`;
     });
 
-// --- Final Connect ---
+    // --- Final Connect ---
     const fcDiv=document.createElement("div");
     fcDiv.className="finalConnectDiv";
     const fcTitle=document.createElement("div");
@@ -169,13 +298,13 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
       const idx=headers.indexOf(m);
       return idx>=0 ? timeToSeconds(agent[idx]) : 0;
     });
-    const totalFC = fcValues.reduce((a,b)=>a+b,0);
+    const totalFC = fcValues.reduce((a,b)=>a+b,0) || 0;
 
     fcMetrics.forEach((metric,i)=>{
       const barLabel=document.createElement("div");
       barLabel.className="barLabel";
-      const percent = ((fcValues[i]/totalFC)*100).toFixed(1);
-      barLabel.innerHTML=`<span>${metric}</span><span>0:00:00 (0%)</span>`;
+      const percent = totalFC > 0 ? ((fcValues[i]/totalFC)*100).toFixed(1) : "0.0";
+      barLabel.innerHTML=`<span>${metric}</span><span>00:00:00 (0%)</span>`;
       const bar=document.createElement("div");
       bar.className="bar";
       const inner=document.createElement("div");
@@ -189,14 +318,16 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
       setTimeout(()=>{
         inner.style.width = percent+"%";
         let currentSec = 0;
-        const step = Math.ceil(fcValues[i]/50) || 1;
+        const target = fcValues[i] || 0;
+        const step = Math.max(1, Math.ceil(target / 50));
         const interval = setInterval(()=>{
           currentSec += step;
-          if(currentSec >= fcValues[i]){
-            currentSec = fcValues[i];
+          if(currentSec >= target){
+            currentSec = target;
             clearInterval(interval);
           }
-          barLabel.children[1].textContent = `${secondsToTime(currentSec)} (${((currentSec/totalFC)*100).toFixed(1)}%)`;
+          const percentNow = totalFC>0 ? ((currentSec/totalFC)*100).toFixed(1) : "0.0";
+          barLabel.children[1].textContent = `${secondsToTime(currentSec)} (${percentNow}%)`;
         },20);
       },100);
     });
@@ -215,18 +346,27 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     pauseTotal.className="pauseTotal";
     pauseDiv.appendChild(pauseTotal);
 
+    // --- combine LAGGED with Exc (not with BRK30) ---
     const pauseColors=["#ff3333","#ff9900"];
-    const pauseValues=pauseMetrics.map(m=>{
-      const idx=headers.indexOf(m);
-      return idx>=0 ? timeToSeconds(agent[idx]) : 0;
-    });
-    const totalPause = pauseValues.reduce((a,b)=>a+b,0);
+    const excIdx = headers.indexOf("Exc");
+    const brkIdx = headers.indexOf("BRK30");
+    const lagIdx = headers.indexOf("LAGGED");
 
-    pauseMetrics.forEach((metric,i)=>{
+    const excVal = excIdx >= 0 ? timeToSeconds(agent[excIdx]) : 0;
+    const brkVal = brkIdx >= 0 ? timeToSeconds(agent[brkIdx]) : 0;
+    const lagVal = lagIdx >= 0 ? timeToSeconds(agent[lagIdx]) : 0;
+
+    // Now combine LAGGED into Exc
+    const combinedExc = excVal + lagVal;
+    const pauseValues = [combinedExc, brkVal]; // [Exc (with LAGGED), BRK30]
+    const totalPause = pauseValues.reduce((a,b)=>a+b,0) || 0;
+    const pauseLabels = ["Exc","BRK30"];
+
+    pauseLabels.forEach((metric,i)=>{
       const barLabel=document.createElement("div");
       barLabel.className="barLabel";
-      const percent = ((pauseValues[i]/totalPause)*100).toFixed(1);
-      barLabel.innerHTML=`<span>${metric}</span><span>0:00:00 (0%)</span>`;
+      const percent = totalPause > 0 ? ((pauseValues[i]/totalPause)*100).toFixed(1) : "0.0";
+      barLabel.innerHTML=`<span>${metric}</span><span>00:00:00 (0%)</span>`;
       const bar=document.createElement("div");
       bar.className="bar";
       const inner=document.createElement("div");
@@ -240,14 +380,16 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
       setTimeout(()=>{
         inner.style.width = percent+"%";
         let currentSec = 0;
-        const step = Math.ceil(pauseValues[i]/50) || 1;
+        const target = pauseValues[i] || 0;
+        const step = Math.max(1, Math.ceil(target / 50));
         const interval = setInterval(()=>{
           currentSec += step;
-          if(currentSec >= pauseValues[i]){
-            currentSec = pauseValues[i];
+          if(currentSec >= target){
+            currentSec = target;
             clearInterval(interval);
           }
-          barLabel.children[1].textContent = `${secondsToTime(currentSec)} (${((currentSec/totalPause)*100).toFixed(1)}%)`;
+          const percentNow = totalPause>0 ? ((currentSec/totalPause)*100).toFixed(1) : "0.0";
+          barLabel.children[1].textContent = `${secondsToTime(currentSec)} (${percentNow}%)`;
         },20);
       },100);
     });
@@ -256,8 +398,8 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     animateNumber(pauseTotal,totalPause,(val)=>{ pauseTotal.textContent = secondsToTime(val); });
 
     // --- Breaks ---
-    const agentId = String(agent[1]||"");
-    const breakInfo = breaksData.find(b => String(b.id||"") === agentId);
+    const agentId = String(agent[1]||"").trim();
+    const breakInfo = breaksData.find(b => String(b.id||"").trim() === agentId);
     if(breakInfo){
       function formatBreakTime(value){
         if(typeof value==='string' && value.startsWith('Date(')){
@@ -273,21 +415,20 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
         return '—';
       }
 
-        const oldShiftEl = document.getElementById('originalShiftDiv');
-  if(oldShiftEl) oldShiftEl.remove();
+      const oldShiftEl = document.getElementById('originalShiftDiv');
+      if(oldShiftEl) oldShiftEl.remove();
 
-  // إنشاء div جديد للـ Original Shift
-  const originalShiftEl = document.createElement('div');
-  originalShiftEl.id = 'originalShiftDiv';
-  originalShiftEl.style.color = '#ffcc00';
-  originalShiftEl.style.textShadow = '0 0 10px #ffcc00';
-  originalShiftEl.style.fontWeight = 'bold';
-  originalShiftEl.style.marginBottom = '5px';
-  originalShiftEl.textContent = `Shift: ${breakInfo.originalShift || '—'}`;
+      const originalShiftEl = document.createElement('div');
+      originalShiftEl.id = 'originalShiftDiv';
+      originalShiftEl.style.color = '#ffcc00';
+      originalShiftEl.style.textShadow = '0 0 10px #ffcc00';
+      originalShiftEl.style.fontWeight = 'bold';
+      originalShiftEl.style.marginBottom = '5px';
+      originalShiftEl.textContent = `Shift: ${breakInfo.originalShift || '—'}`;
+      breaksContainer.insertBefore(originalShiftEl, breaksContainer.firstChild);
 
-  // ضعه أول عنصر في الـ breaksContainer
-  breaksContainer.insertBefore(originalShiftEl, breaksContainer.firstChild);
-       
+      const firstBreakEl = document.getElementById("firstBreak");
+      const secondBreakEl = document.getElementById("secondBreak");
       firstBreakEl.textContent = formatBreakTime(breakInfo.firstBreak);
       secondBreakEl.textContent = formatBreakTime(breakInfo.secondBreak);
       breaksContainer.style.display='block';
@@ -302,19 +443,27 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     table.appendChild(thead);
     const tbody=document.createElement("tbody");
 
+    // limit columns up to index 29 and exclude LAGGED column from table
     agent.forEach((val,index)=>{
-      const colName=headers[index];
-      if(index<2) return;
+      if(index < 2) return;
       if(index > 29) return;
+      const colName = headers[index];
+      if(!colName) return;
       if(fcMetrics.includes(colName)) return;
       if(pauseMetrics.includes(colName)) return;
-      if(colName==="Final Connect") return;
-      if(colName==="CALLS") return;
+      if(colName === "Final Connect") return;
+      if(colName === "CALLS") return;
+      if(colName === "LAGGED") return; // exclude LAGGED from table
+
       const row=document.createElement("tr");
-      const td1=document.createElement("td"); td1.textContent=colName;
+      const td1=document.createElement("td"); td1.textContent = colName;
       const td2=document.createElement("td");
-      if(percentCols.includes(colName)) td2.textContent=(parseFloat(val)*100).toFixed(2)+"%";
-      else td2.textContent=val;
+      if(percentCols.includes(colName)){
+        const num = parseFloat(val) || 0;
+        td2.textContent = (num*100).toFixed(2) + "%";
+      } else {
+        td2.textContent = val !== undefined ? val : "";
+      }
       row.appendChild(td1); row.appendChild(td2);
       tbody.appendChild(row);
     });
@@ -324,31 +473,29 @@ document.getElementById("searchBtn").addEventListener("click", async ()=>{
     container.appendChild(card);
   });
 
-
-  // --- لو فيه بيانات بس في breaks sheet ---
- if(filteredMain.length===0 && filteredBreaks.length>0){
-  const breakInfo = filteredBreaks[0];
-  function formatBreakTime(value){
-    if(typeof value==='string' && value.startsWith('Date(')){
-      const parts = value.match(/\d+/g);
-      if(parts && parts.length>=6){
-        let h = parseInt(parts[3],10);
-        const m = parseInt(parts[4],10);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        h = h % 12; if(h===0) h = 12;
-        return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+  if(filteredMain.length===0 && filteredBreaks.length>0){
+    const breakInfo = filteredBreaks[0];
+    function formatBreakTime(value){
+      if(typeof value==='string' && value.startsWith('Date(')){
+        const parts = value.match(/\d+/g);
+        if(parts && parts.length>=6){
+          let h = parseInt(parts[3],10);
+          const m = parseInt(parts[4],10);
+          const ampm = h >= 12 ? 'PM' : 'AM';
+          h = h % 12; if(h===0) h = 12;
+          return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')} ${ampm}`;
+        }
       }
+      return '—';
     }
-    return '—';
+    const firstBreakEl = document.getElementById("firstBreak");
+    const secondBreakEl = document.getElementById("secondBreak");
+    firstBreakEl.textContent = formatBreakTime(breakInfo.firstBreak);
+    secondBreakEl.textContent = formatBreakTime(breakInfo.secondBreak);
+    breaksContainer.style.display='block';
   }
-  firstBreakEl.textContent = formatBreakTime(breakInfo.firstBreak);
-  secondBreakEl.textContent = formatBreakTime(breakInfo.secondBreak);
-  breaksContainer.style.display='block';
-}
-
 });
 
-// تنفيذ البحث عند الضغط على Enter
 document.getElementById("searchInput").addEventListener("keypress", function(e) {
     if (e.key === "Enter") {
         document.getElementById("searchBtn").click();
