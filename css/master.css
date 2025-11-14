@@ -4,88 +4,88 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     text-align: center;
     padding: 20px;
-}
-h1 {
+  }
+  h1 {
     color: #00ffff;
     text-shadow: 0 0 15px #00ffff;
     margin-bottom: 20px;
-}
-input, button {
+  }
+  input, button {
     padding: 10px;
     border: none;
     border-radius: 8px;
     font-size: 16px;
     outline: none;
-}
-input {
+  }
+  input {
     width: 280px;
     margin-bottom: 20px;
     background-color: #1a2538;
     color: #00ffff;
     box-shadow: 0 0 10px #00ffff33;
-}
-button {
+  }
+  button {
     background-color: #00ffff;
     color: #000;
     font-weight: bold;
     cursor: pointer;
     box-shadow: 0 0 15px #00ffff;
     margin-left: 10px;
-}
-button:disabled {
+  }
+  button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
-}
-.flexContainer {
+  }
+  .flexContainer {
     display: flex;
     justify-content: center;
     gap: 30px;
     flex-wrap: wrap;
     margin-bottom: 50px;
-}
-.rightColumn {
+  }
+  .rightColumn {
     display: flex;
     flex-direction: column;
     gap: 35px;
-}
-.finalConnectDiv, .totalPauseDiv, .breaksDiv {
+  }
+  .finalConnectDiv, .totalPauseDiv, .breaksDiv {
     width: 320px;
     background-color: #1a2538;
     border-radius: 12px;
     padding: 20px;
     box-shadow: 0 0 25px #00bfff22;
     text-align: left;
-}
-.fcTitle, .pauseTitle, .breaksTitle {
+  }
+  .fcTitle, .pauseTitle, .breaksTitle {
     font-size: 18px;
     font-weight: bold;
     margin-bottom: 10px;
     color: #00ffff;
     text-shadow: 0 0 8px #00ffff;
-}
-.fcTotal, .pauseTotal, .breaksTotal {
+  }
+  .fcTotal, .pauseTotal, .breaksTotal {
     font-size: 28px;
     font-weight: bold;
     color: #ffcc00;
     margin-bottom: 10px;
     text-shadow: 0 0 10px #ffcc00;
-}
-.barLabel {
+  }
+  .barLabel {
     display: flex;
     justify-content: space-between;
     font-size: 14px;
     color: #00ffff;
     margin-bottom: 4px;
     margin-top: 10px;
-}
-.bar {
+  }
+  .bar {
     height: 25px;
     border-radius: 5px;
     background-color: #00ffff22;
     overflow: hidden;
     position: relative;
-}
-.barInner {
+  }
+  .barInner {
     height: 100%;
     border-radius: 5px;
     text-align: right;
@@ -94,8 +94,8 @@ button:disabled {
     box-shadow: 0 0 10px #00ffff;
     color: #000;
     transition: width 0.8s ease-in-out;
-}
-.agentCard {
+  }
+  .agentCard {
     background-color: #1a2538;
     padding: 20px;
     margin: 20px auto;
@@ -104,34 +104,33 @@ button:disabled {
     max-width: 700px;
     box-shadow: 0 0 25px #00bfff22;
     text-align: center;
-}
-.agentHeader {
+  }
+  .agentHeader {
     font-size: 18px;
     font-weight: bold;
     margin-bottom: 20px;
     margin-top: 20px;
     color: #00ffff;
     text-shadow: 0 0 5px #00ffff;
-}
-table {
+  }
+  table {
     width: 100%;
     border-collapse: collapse;
     margin: 0 auto;
-}
-th, td {
+  }
+  th, td {
     border-bottom: 1px solid #00bfff33;
     padding: 8px;
     text-align: center;
-}
-th {
+  }
+  th {
     color: #00ffff;
-}
-#noData {
+  }
+  #noData {
     margin-top:20px;
     color:#888;
     text-shadow:0 0 5px #00ffff;
-}
-
+  }
   .version {
     position: fixed;
     bottom: 10px;
@@ -142,4 +141,18 @@ th {
     z-index: 9999;
     color:#00ffff;
     text-shadow:0 0 15px #00ffff;;
+  }
+
+  /* AF2 display */
+  .lastUpdateRaw {
+    position: fixed;
+    top: 15px;
+    right: 20px;
+    font-size: 18px;
+    color: #ffcc00;
+    font-weight: bold;
+    text-shadow: 0 0 12px #ffcc00;
+    z-index: 99999;
+    padding: 8px 12px;
+    border-radius: 8px;
   }
